@@ -5,9 +5,16 @@ let socket;
 let reconnectTimer;
 
 export const initSocket = (token) => {
+    if (!token) {
+        console.error("❌ WebSocket Init Error: No token provided");
+        return;
+    }
+
     if (socket) {
         socket.disconnect();
     }
+
+    console.log("🔌 Connecting to WebSocket with token:", token);
 
     socket = io(API_URL, {
         auth: { token },
@@ -19,7 +26,7 @@ export const initSocket = (token) => {
     });
 
     socket.on('connect', () => {
-        console.log('Connected to WebSocket server');
+        console.log(`✅ Connected to WebSocket server: ${socket.id}`);
         if (reconnectTimer) {
             clearTimeout(reconnectTimer);
             reconnectTimer = null;
@@ -27,25 +34,30 @@ export const initSocket = (token) => {
     });
 
     socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
+        console.error("❌ WebSocket Connection Error:", error.message);
         if (!reconnectTimer) {
             reconnectTimer = setTimeout(() => {
-                console.log('Attempting to reconnect...');
+                console.log("🔄 Attempting to reconnect...");
                 initSocket(token);
             }, 5000);
         }
     });
 
     socket.on('reconnect', (attempt) => {
-        console.log('Reconnected on attempt:', attempt);
+        console.log(`🔄 Reconnected on attempt: ${attempt}`);
     });
 
     socket.on('reconnect_error', (error) => {
-        console.error('Socket reconnection error:', error);
+        console.error("❌ WebSocket Reconnection Error:", error.message);
     });
 
     socket.on('reconnect_failed', () => {
-        console.error('Socket reconnection failed');
+        console.error("❌ WebSocket Reconnection Failed");
+    });
+
+    // ✅ Listen for a test event from the backend
+    socket.on("testEvent", (data) => {
+        console.log("📥 Received test event:", data);
     });
 
     return socket;
@@ -53,7 +65,7 @@ export const initSocket = (token) => {
 
 export const getSocket = () => {
     if (!socket) {
-        throw new Error('Socket not initialized');
+        throw new Error("❌ Socket not initialized");
     }
     return socket;
 };

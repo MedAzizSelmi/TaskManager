@@ -10,16 +10,22 @@ const TaskList = () => {
     const [sortBy, setSortBy] = useState('date');
     const [newTask, setNewTask] = useState({ title: '', description: '' });
 
+    // Fetch tasks from API
     useEffect(() => {
         fetchTasks();
         const socket = getSocket();
-        
+
         socket.on('taskCreated', (task) => {
-            setTasks(prev => [task, ...prev]);
+            setTasks(prev => {
+                if (!prev.some(t => t._id === task._id)) {
+                    return [task, ...prev];  // Only add the task if it's not already in the list
+                }
+                return prev;
+            });
         });
 
         socket.on('taskUpdated', (updatedTask) => {
-            setTasks(prev => prev.map(task => 
+            setTasks(prev => prev.map(task =>
                 task._id === updatedTask._id ? updatedTask : task
             ));
         });
@@ -29,11 +35,12 @@ const TaskList = () => {
         });
 
         socket.on('taskStatusUpdated', (updatedTask) => {
-            setTasks(prev => prev.map(task => 
+            setTasks(prev => prev.map(task =>
                 task._id === updatedTask._id ? updatedTask : task
             ));
         });
 
+        // Cleanup the socket listeners on component unmount
         return () => {
             socket.off('taskCreated');
             socket.off('taskUpdated');
@@ -42,6 +49,7 @@ const TaskList = () => {
         };
     }, []);
 
+    // Fetch tasks function
     const fetchTasks = async () => {
         try {
             setLoading(true);
@@ -61,6 +69,7 @@ const TaskList = () => {
         }
     };
 
+    // Handle adding a new task
     const handleAddTask = async (e) => {
         e.preventDefault();
         try {
@@ -74,24 +83,39 @@ const TaskList = () => {
             });
             if (!response.ok) throw new Error('Failed to add task');
             const task = await response.json();
-            setTasks(prev => [task, ...prev]);
+            setTasks(prev => {
+                if (!prev.some(t => t._id === task._id)) {
+                    return [task, ...prev];  // Only add the task if it's not already in the list
+                }
+                return prev;
+            });
             setNewTask({ title: '', description: '' });
         } catch (err) {
             setError(err.message);
         }
     };
 
+    // Handle form changes
     const handleChange = (e) => {
         const { name, value } = e.target;
         setNewTask(prev => ({ ...prev, [name]: value }));
     };
 
+    // Filter and sort tasks
     const filteredAndSortedTasks = tasks
         .filter(task => filter === 'all' ? true : task.status === filter)
         .sort((a, b) => {
             if (sortBy === 'date') return new Date(b.createdAt) - new Date(a.createdAt);
             return a.title.localeCompare(b.title);
         });
+
+    // Handle autofocus
+    useEffect(() => {
+        const titleInput = document.querySelector('input[name="title"]');
+        if (titleInput) {
+            titleInput.focus();
+        }
+    }, []); // This ensures autofocus is triggered after component mounts
 
     if (loading) return <div className="loading">Loading tasks...</div>;
     if (error) return <div className="error">{error}</div>;
